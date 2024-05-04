@@ -1,47 +1,52 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+import tkinter.simpledialog as sdtk
+import tkinter.filedialog as fdtk
 from time import sleep
 
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+from default import *
+
+"""------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
 class Slot():
 
-    st = {'□': None, '0': 0, '1': 1}
-    sc = {'□': 'red', '0': 'yellow', '1': 'blue'}
-    ts = {None: '□', 0: '0', 1: '1'}
-    tc = {None: 'red', 0: 'yellow', 1: 'blue'}
-    cs = {'red': '□', 'yellow': '0', 'blue': '1'}
-    ct = {'red': None, 'yellow': 0, 'blue': 1}
+    empty = ('o', None, 'red')
+    zero  = ('0', 0, 'yellow')
+    one   = ('1', 1, 'blue')
 
-    def __init__(self, vs = 0, vt = 0, vc = 0):
+    def __init__(self, vs = - 1, vt = - 1, vc = - 1):
         # valueString valueType valueColor
 
-        if vs != 0:
-            self.vs = vs
-            self.vt = Slot.st[vs]
-            self.vc = Slot.sc[vs]
+        cont = None
 
-        elif vt != 0:
-            self.vs = Slot.ts[vt]
-            self.vt = vt
-            self.vc = Slot.tc[vt]
+        if vs != - 1:
+            cont = Slot.find(vs)
 
-        elif vc != 0:
-            self.vs = Slot.cs[vc]
-            self.vt = Slot.ct[vc]
-            self.vc = vc
+        elif vt != - 1:
+            cont = Slot.find(vt)
+
+        elif vc != - 1:
+            cont = Slot.find(vc)
 
         else:
             raise AttributeError
 
+        self.vs, self.vt, self.vc = cont
+
         return
 
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+    @classmethod
+    def find(cls, value):
+        """
+        Finds the tuple corresponding to value. Returns - 1 if it doesn't exist.
+        """
 
-slotsNb = 20
-slots = [Slot(vt = None) for _ in range(slotsNb)]
+        for e in (cls.empty, cls.zero, cls.one):
+            if value in e: return e
 
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+        return - 1
+
+"""------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
 class TextCase(tk.Label):
 
@@ -114,7 +119,7 @@ class ArrowCase(tk.Label):
         if self.direct == '←': return 'l'
         return 'r'
 
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+"""------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
 class State(ttk.LabelFrame):
 
@@ -123,12 +128,12 @@ class State(ttk.LabelFrame):
         self.name = name
         ttk.LabelFrame.__init__(self, sts, text = self.name)
 
+        c = ('o', '0', '1')
         self.cont = [
-            [TextCase(self, Slot(vs = '□'), 0, 0), ChoiceCase(self, 0, 1), ArrowCase(self, 0, 2), ttk.Entry(self)],
-            [TextCase(self, Slot(vs = '0'), 1, 0), ChoiceCase(self, 1, 1), ArrowCase(self, 1, 2), ttk.Entry(self)],
-            [TextCase(self, Slot(vs = '1'), 2, 0), ChoiceCase(self, 2, 1), ArrowCase(self, 2, 2), ttk.Entry(self)]
+            [TextCase(self, Slot(vs = c[i]), i, 0), ChoiceCase(self, i, 1), ArrowCase(self, i, 2), ttk.Entry(self)] for i in range(len(c))
         ]
-        
+
+        for w in self.cont: w[3].insert(tk.END, 'undef')
         for w in range(len(self.cont)): self.cont[w][- 1].grid(row = w, column = 3)
         
         self.grid(row = row, column = 0)
@@ -138,13 +143,13 @@ class State(ttk.LabelFrame):
     def genFunc(self):
 
         t = f"def {self.name}(row, cursor):"
-        l = [None, 0, 1]
+        l = (None, 0, 1)
         dirSign, nextFunc = list(), list()
         for i in self.cont:
             if i[2].getDirect() == 'l': dirSign.append('-')
             else: dirSign.append('+')
             nextFunc.append(i[3].get())
-        for i in range(3):
+        for i in range(len(l)):
             t += f"""
     if row[cursor].vt == {l[i]}:
         row[cursor] = Slot(vs = '{self.cont[i][1].getValue().vs}')
@@ -153,11 +158,10 @@ class State(ttk.LabelFrame):
 
         return t
 
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+"""------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
 def start():
     
-    startBut.destroy()
     sts.quit()
 
     for i in range(slotsNb):
@@ -179,54 +183,78 @@ def addState(name_ = ''):
     global stateLine
 
     name = name_
-    """if name == '':
-        temp = tk.Tk()
-        temp.title("State name")
-        ent = ttk.Entry(temp, width = 100)
-        ent.grid()
-        ent.bind('<Return>', lambda e: e.widget.master.destroy())
-        temp.mainloop()"""
-    if name == '': name = input('State name: ')
+    if name == '':
+        name = sdtk.askstring(title = 'New state', prompt = 'Select the name of your new state.')
+
+    # name verification
+    for c in name:
+        if not 0 <= ord(c) <= 127: raise ValueError
+    
     states.append(State(name, stateLine))
     stateLine += 1
     
     return
 
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+def importStates():
+
+    path = fdtk.askopenfilename() # filetypes = ("py", "txt")
+    with open(path, mode = 'r') as f:
+        try:
+            exec(f.read())
+        except Exception as e:
+            print(e)
+        f.close()
+
+    return
+
+def exportStates():
+
+    f = fdtk.asksaveasfile(mode = 'w', defaultextension = '.py')
+    for s in states:
+        print(s.genFunc())
+        f.write(s.genFunc())
+        f.write('\n')
+    f.close()
+
+    return
+
+"""------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
 sts = tk.Tk()
 res = tk.Tk()
 sts.title('States')
 res.title('Output')
 
+slotsNb = 20
+slots = [Slot(vt = None) for _ in range(slotsNb)]
+timeInter = 1
+
 inputs = [[ChoiceCase(res, 0, i) for i in range(slotsNb)]]
-startBut = ttk.Button(res, text = 'Start', command = start)
-startBut.grid(row = 0, column = slotsNb + 1)
 
 states = list()
-addStateBut = ttk.Button(sts, text = 'Add button', command = addState)
-addStateBut.grid(row = 0, column = 0)
 stateLine = 1
 addState('init')
 
+menu = tk.Menu(sts)
+subMenu = tk.Menu(menu, tearoff = False)
+sts.config(menu = menu)
+menu.add_cascade(label = "Options", menu = subMenu)
+subMenu.add_command(label = "Add state", command = addState)
+subMenu.add_command(label = "Start", command = start)
+subMenu.add_command(label = "Import", command = importStates)
+subMenu.add_command(label = "Export", command = exportStates)
+
 sts.mainloop()
 
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+"""------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
-def puits(row, cursor):
-    return row, cursor, puits
-
-def vrai(row, cursor):
-    print('End')
-    sts.destroy()
-    while True:
-        res.update()
-    return row, cursor, vrai
-
-"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
-
-for s in states:
-    exec(s.genFunc())
+functionTexts = [s.genFunc() for s in states]
+for f in functionTexts:
+    try:
+        exec(f)
+    except Exception as e:
+        print(e)
+        exit()
 
 cursor = 0
 for s in range(slotsNb):
@@ -241,11 +269,14 @@ while True:
     if cursor >= slotsNb: break
     inputs.append([TextCase(res, Slot(vt = None), len(inputs) - 1, i) for i in range(slotsNb)])
     refresh()
-    sleep(1)
+    sleep(timeInter)
 
-res.mainloop()
+for f in functionTexts: print(f)
+
 try:
-    res.destroy()
-    sts.destroy()
+    res.mainloop()
 except:
-    pass
+    try:
+        res.destroy()
+    except:
+        pass
