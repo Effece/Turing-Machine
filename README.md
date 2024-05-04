@@ -5,6 +5,7 @@ I wrote this code in order to work on finding Turing machines efficiently and te
 ## Implementation
 This program uses a serie of inputs set to 0, 1 or empty. The states define, for each value, what it has to be changed to, the direction to go in and the next state. At the start, every input is set to empty and the firstly created and used state is 'init'.
 Empty can be represented with red, 0 with yellow and 1 with red.
+*Note a special character is used for empty (square shape); it might not display for everyone.*
 
 ## Usage
 Upon executing the main file, two windows pop out, one is the set of inputs, the other one contains the entries for the states. For now, the console is still used a bit.
