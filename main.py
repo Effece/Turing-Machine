@@ -4,43 +4,75 @@ from time import sleep
 
 """-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
-slotsNb = 20
-slots = [None for _ in range(slotsNb)]
+class Slot():
 
-symbsCor = {'□': None, '0': 0, '1': 1}
-symbsMir = {None: '□', 0: '0', 1: '1'}
+    st = {'□': None, '0': 0, '1': 1}
+    sc = {'□': 'red', '0': 'yellow', '1': 'blue'}
+    ts = {None: '□', 0: '0', 1: '1'}
+    tc = {None: 'red', 0: 'yellow', 1: 'blue'}
+    cs = {'red': '□', 'yellow': '0', 'blue': '1'}
+    ct = {'red': None, 'yellow': 0, 'blue': 1}
+
+    def __init__(self, vs = 0, vt = 0, vc = 0):
+        # valueString valueType valueColor
+
+        if vs != 0:
+            self.vs = vs
+            self.vt = Slot.st[vs]
+            self.vc = Slot.sc[vs]
+
+        elif vt != 0:
+            self.vs = Slot.ts[vt]
+            self.vt = vt
+            self.vc = Slot.tc[vt]
+
+        elif vc != 0:
+            self.vs = Slot.cs[vc]
+            self.vt = Slot.ct[vc]
+            self.vc = vc
+
+        else:
+            raise AttributeError
+
+        return
+
+"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+
+slotsNb = 20
+slots = [Slot(vt = None) for _ in range(slotsNb)]
 
 """-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
 class TextCase(tk.Label):
 
-    def __init__(self, master, content, row, col):
+    def __init__(self, master, slot, row, col):
 
         self.master = master
-        self.content = content
-        self.text = self.content
+        self.content = slot
+        self.text = slot.vt
         tk.Label.__init__(self, master, text = self.text, width = 3, highlightbackground = 'black', highlightthickness = 1)
         self.grid(row = row, column = col)
 
         return
 
-    def changeText(self, newText):
+    def changeContent(self, newContent):
 
-        self.text = newText
+        self.content = newContent
+        self.text = newContent.vs
         self.config(text = self.text)
+        self.content = Slot(vs = self.text)
 
         return
 
 class ChoiceCase(tk.Frame):
 
-    colors = ['red', 'yellow', 'blue']
-    colorsDict = {'red': '□', 'yellow': '0', 'blue': '1'}
+    colors = ('red', 'yellow', 'blue')
 
-    def __init__(self, master, row, col, color = 'red'):
+    def __init__(self, master, row, col, slot = Slot(vc = 'red')):
 
         self.master = master
-        self.color = color
-        tk.Frame.__init__(self, master, width = 20, height = 20, highlightbackground = 'black', highlightthickness = 1, bg = color)
+        self.color = slot.vc
+        tk.Frame.__init__(self, master, width = 20, height = 20, highlightbackground = 'black', highlightthickness = 1, bg = self.color)
         self.bind('<Button-1>', self.nextColor)
         self.grid(row = row, column = col)
 
@@ -55,7 +87,7 @@ class ChoiceCase(tk.Frame):
 
     def getValue(self):
 
-        return ChoiceCase.colorsDict[self.color]
+        return Slot(vc = self.color)
 
 class ArrowCase(tk.Label):
 
@@ -92,10 +124,11 @@ class State(ttk.LabelFrame):
         ttk.LabelFrame.__init__(self, sts, text = self.name)
 
         self.cont = [
-            [TextCase(self, '□', 0, 0), ChoiceCase(self, 0, 1), ArrowCase(self, 0, 2), ttk.Entry(self)],
-            [TextCase(self, '0', 1, 0), ChoiceCase(self, 1, 1), ArrowCase(self, 1, 2), ttk.Entry(self)],
-            [TextCase(self, '1', 2, 0), ChoiceCase(self, 2, 1), ArrowCase(self, 2, 2), ttk.Entry(self)]
+            [TextCase(self, Slot(vs = '□'), 0, 0), ChoiceCase(self, 0, 1), ArrowCase(self, 0, 2), ttk.Entry(self)],
+            [TextCase(self, Slot(vs = '0'), 1, 0), ChoiceCase(self, 1, 1), ArrowCase(self, 1, 2), ttk.Entry(self)],
+            [TextCase(self, Slot(vs = '1'), 2, 0), ChoiceCase(self, 2, 1), ArrowCase(self, 2, 2), ttk.Entry(self)]
         ]
+        
         for w in range(len(self.cont)): self.cont[w][- 1].grid(row = w, column = 3)
         
         self.grid(row = row, column = 0)
@@ -113,8 +146,8 @@ class State(ttk.LabelFrame):
             nextFunc.append(i[3].get())
         for i in range(3):
             t += f"""
-    if row[cursor] == {l[i]}:
-        row[cursor] = {symbsCor[self.cont[i][1].getValue()]}
+    if row[cursor].vt == {l[i]}:
+        row[cursor] = Slot(vs = '{self.cont[i][1].getValue().vs}')
         cursor {dirSign[i]}= 1
         return row, cursor, {nextFunc[i]}"""
 
@@ -128,17 +161,16 @@ def start():
     sts.quit()
 
     for i in range(slotsNb):
-        slots[i] = ChoiceCase.colorsDict[inputs[i].color]
-        inputs[i].destroy()
-        inputs[i] = TextCase(res, slots[i], 0, i)
-        slots[i] = symbsCor[slots[i]]
+        slots[i] = Slot(vc = inputs[0][i].color)
+        inputs[0][i] = TextCase(res, slots[i], 0, i)
     
     return
 
 def refresh():
 
     for i in range(slotsNb):
-        inputs[i].changeText(slots[i])
+        inputs[- 1][i].changeContent(slots[i])
+    res.update()
 
     return
 
@@ -147,6 +179,13 @@ def addState(name_ = ''):
     global stateLine
 
     name = name_
+    """if name == '':
+        temp = tk.Tk()
+        temp.title("State name")
+        ent = ttk.Entry(temp, width = 100)
+        ent.grid()
+        ent.bind('<Return>', lambda e: e.widget.master.destroy())
+        temp.mainloop()"""
     if name == '': name = input('State name: ')
     states.append(State(name, stateLine))
     stateLine += 1
@@ -160,7 +199,7 @@ res = tk.Tk()
 sts.title('States')
 res.title('Output')
 
-inputs = [ChoiceCase(res, 0, i) for i in range(slotsNb)]
+inputs = [[ChoiceCase(res, 0, i) for i in range(slotsNb)]]
 startBut = ttk.Button(res, text = 'Start', command = start)
 startBut.grid(row = 0, column = slotsNb + 1)
 
@@ -174,21 +213,39 @@ sts.mainloop()
 
 """-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
 
+def puits(row, cursor):
+    return row, cursor, puits
+
+def vrai(row, cursor):
+    print('End')
+    sts.destroy()
+    while True:
+        res.update()
+    return row, cursor, vrai
+
+"""-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"""
+
 for s in states:
     exec(s.genFunc())
 
 cursor = 0
+for s in range(slotsNb):
+    if slots[s].vt is not None:
+        cursor = s
+        break
+
 func = init
-print(slots)
+
 while True:
     slots, cursor, func = func(slots, cursor)
-    for i in range(slotsNb):
-        slots[i] = symbsMir[slots[i]]
     if cursor >= slotsNb: break
+    inputs.append([TextCase(res, Slot(vt = None), len(inputs) - 1, i) for i in range(slotsNb)])
     refresh()
-    for i in range(slotsNb):
-        slots[i] = symbsCor[slots[i]]
-    res.update()
     sleep(1)
 
 res.mainloop()
+try:
+    res.destroy()
+    sts.destroy()
+except:
+    pass
